@@ -1,9 +1,7 @@
 version: '3.8'
-
 services:
-
   backend:
-    build: ./backend
+    image: ghcr.io/malik-hamza2/three-tier-app-backend:latest
     ports:
       - "5000:5000"
     depends_on:
@@ -15,9 +13,8 @@ services:
     restart: always
     networks:
       - app-network
-
   frontend:
-    build: ./frontend
+    image: ghcr.io/malik-hamza2/three-tier-app-frontend:latest
     ports:
       - "3000:3000"
     depends_on:
@@ -29,7 +26,6 @@ services:
     restart: always
     networks:
       - app-network
-
   mongo:
     image: mongo:6.0
     ports:
@@ -39,10 +35,8 @@ services:
     restart: always
     networks:
       - app-network
-
 volumes:
   mongo-data:
-
 networks:
   app-network:
     driver: bridge
