@@ -1,0 +1,55 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mongo-init
+  namespace: database
+spec:
+  backoffLimit: 5
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: mongo-init
+        image: mongo:6
+        command:
+          - sh
+          - -c
+          - |
+            echo "Waiting for MongoDB to be ready..."
+            until mongosh --host mongo-0.mongo-service.database.svc.cluster.local:27017 --eval "db.adminCommand('ping')" >/dev/null 2>&1; do
+              echo "MongoDB not ready, retrying in 3s..."
+              sleep 3
+            done
+
+            echo "Creating root user if not exists..."
+            mongosh --host mongo-0.mongo-service.database.svc.cluster.local:27017 --eval "
+              db = db.getSiblingDB('admin');
+              if (!db.getUser('$MONGO_INITDB_ROOT_USERNAME')) {
+                db.createUser({
+                  user: '$MONGO_INITDB_ROOT_USERNAME',
+                  pwd: '$MONGO_INITDB_ROOT_PASSWORD',
+                  roles: [{ role: 'root', db: 'admin' }]
+                });
+              }
+            "
+
+            echo "Initiating replica set..."
+            mongosh --host mongo-0.mongo-service.database.svc.cluster.local:27017 -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --eval '
+              rs.initiate({
+                _id: "rs0",
+                members: [{ _id: 0, host: "mongo-0.mongo-service.database.svc.cluster.local:27017" }]
+              })
+            '
+
+            echo "MongoDB initialization complete!"
+        env:
+          - name: MONGO_INITDB_ROOT_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: mongo-secret
+                key: MONGO_INITDB_ROOT_USERNAME
+          - name: MONGO_INITDB_ROOT_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: mongo-secret
+                key: MONGO_INITDB_ROOT_PASSWORD

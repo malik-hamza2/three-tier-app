@@ -37,3 +37,9 @@ spec:
             port: 3000
           initialDelaySeconds: 5
           periodSeconds: 10
+        env:
+          - name: REACT_APP_API_BASE_URL
+            valueFrom:
+              configMapKeyRef:
+                name: backend-config
+                key: REACT_APP_API_BASE_URL
